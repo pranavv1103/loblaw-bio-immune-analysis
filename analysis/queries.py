@@ -9,6 +9,7 @@ reused by the dashboard, by tests, or from a plain Python REPL.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from pathlib import Path
 
@@ -16,7 +17,7 @@ import pandas as pd
 from scipy import stats
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_DB = ROOT / "cell_counts.db"
+DEFAULT_DB = Path(os.environ.get("CELL_DB", ROOT / "cell_counts.db"))
 
 POPULATIONS = ["b_cell", "cd8_t_cell", "cd4_t_cell", "nk_cell", "monocyte"]
 

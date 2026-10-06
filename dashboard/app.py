@@ -8,7 +8,9 @@ Run with:
     streamlit run dashboard/app.py
 """
 
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -17,6 +19,10 @@ import streamlit as st
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+
+# Hosted deployments lack the gitignored .db and may have a read-only repo dir.
+if not (ROOT / "cell_counts.db").exists() and "CELL_DB" not in os.environ:
+    os.environ["CELL_DB"] = str(Path(tempfile.gettempdir()) / "cell_counts.db")
 
 from analysis.queries import (  # noqa: E402
     DEFAULT_DB,
@@ -31,10 +37,9 @@ from analysis.queries import (  # noqa: E402
 st.set_page_config(page_title="Loblaw Bio | Miraclib Immune Cell Analysis", layout="wide")
 
 if not Path(DEFAULT_DB).exists():
-    # Hosted deployments don't have the gitignored .db; build it from the CSV.
-    import subprocess
+    import load_data
 
-    subprocess.run([sys.executable, str(ROOT / "load_data.py")], check=True, cwd=ROOT)
+    load_data.main_build(load_data.DEFAULT_CSV)
 
 conn = get_connection()
 

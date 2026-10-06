@@ -14,6 +14,7 @@ Safe to re-run: the database is rebuilt from scratch each time.
 """
 
 import csv
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -21,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 DEFAULT_CSV = ROOT / "cell-count.csv"
 SCHEMA_PATH = ROOT / "schema.sql"
-DB_PATH = ROOT / "cell_counts.db"
+DB_PATH = Path(os.environ.get("CELL_DB", ROOT / "cell_counts.db"))
 
 POPULATIONS = ["b_cell", "cd8_t_cell", "cd4_t_cell", "nk_cell", "monocyte"]
 
@@ -83,8 +84,7 @@ def load_csv(conn: sqlite3.Connection, csv_path: Path) -> None:
     conn.commit()
 
 
-def main() -> None:
-    csv_path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_CSV
+def main_build(csv_path: Path) -> None:
     if not csv_path.exists():
         print(f"ERROR: CSV file not found at {csv_path}", file=sys.stderr)
         sys.exit(1)
@@ -106,6 +106,10 @@ def main() -> None:
     print(f"  subjects:    {n_subjects}")
     print(f"  samples:     {n_samples}")
     print(f"  cell_counts: {n_counts}")
+
+
+def main() -> None:
+    main_build(Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_CSV)
 
 
 if __name__ == "__main__":
