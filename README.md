@@ -1,23 +1,24 @@
-# Loblaw Bio — Miraclib Immune Cell Population Analysis
+# Loblaw Bio: Miraclib Immune Cell Population Analysis
 
-Analysis pipeline and interactive dashboard for Bob Loblaw's clinical trial
-data (`cell-count.csv`), answering:
+This repo holds the analysis pipeline and interactive dashboard for Bob Loblaw's clinical trial data (`cell-count.csv`). It answers three questions:
 
-- **Part 2** — relative frequency of each immune cell population per sample
-- **Part 3** — responders vs non-responders to miraclib in melanoma (PBMC samples), with boxplots and significance testing
-- **Part 4** — baseline (t=0) melanoma/miraclib/PBMC subset breakdown, and the average B-cell count for melanoma male responders at t=0
+- **Part 2:** what share of each sample is made up of each immune cell population?
+- **Part 3:** do melanoma patients on miraclib who respond differ from those who don't (PBMC samples only)?
+- **Part 4:** what does the baseline (t=0) melanoma/miraclib/PBMC subset look like, and what is the average B-cell count for melanoma male responders at t=0?
+
+**Link to hosted dashboard:** https://loblaw-bio-immune.streamlit.app/
 
 ## Project structure
 
 ```
 .
 ├── cell-count.csv          # source data
-├── schema.sql               # SQLite schema (subjects / samples / cell_counts)
-├── load_data.py              # builds cell_counts.db from the CSV
+├── schema.sql              # SQLite schema (subjects / samples / cell_counts)
+├── load_data.py            # builds cell_counts.db from the CSV
 ├── analysis/
-│   └── queries.py            # Part 2-4 query/analysis functions
+│   └── queries.py          # Part 2-4 query and analysis functions
 ├── dashboard/
-│   └── app.py                 # Streamlit dashboard (Parts 2-4)
+│   └── app.py              # Streamlit dashboard (Parts 2-4)
 ├── tests/
 │   └── test_queries.py
 ├── requirements.txt
@@ -26,15 +27,15 @@ data (`cell-count.csv`), answering:
 
 ## Database design
 
-Three normalized tables (see `schema.sql`):
+There are three normalized tables (see `schema.sql`):
 
-- `subjects` — one row per subject: `project`, `condition`, `age`, `sex`, `treatment`, `response`. These fields are constant across all of a subject's samples in the source data, so they're stored once per subject instead of repeated per row.
-- `samples` — one row per sample: `sample_id`, `subject_id` (FK), `sample_type`, `time_from_treatment_start`.
-- `cell_counts` — long/tidy format, one row per `(sample_id, population)` with the raw `count`. Using a long table instead of one column per population means adding a new cell population later needs no schema change.
+- `subjects`: one row per subject (`project`, `condition`, `age`, `sex`, `treatment`, `response`). These fields never change across a subject's samples, so they are stored once instead of being repeated on every row.
+- `samples`: one row per sample (`sample_id`, `subject_id` as a foreign key, `sample_type`, `time_from_treatment_start`).
+- `cell_counts`: long format, one row per `(sample_id, population)` holding the raw `count`. A long table means a new cell population can be added later without changing the schema, and per-population queries stay simple.
 
-## Running it
+## How to run it
 
-This was built and tested against **Python 3.11+** (works in GitHub Codespaces' default Python environment).
+Tested with Python 3.11 and newer, and it works in the default GitHub Codespaces environment.
 
 ```bash
 make setup      # pip install -r requirements.txt
@@ -42,50 +43,40 @@ make pipeline   # builds cell_counts.db from cell-count.csv
 make dashboard  # starts the Streamlit dashboard at http://localhost:8501
 ```
 
-Run tests with:
+Run the tests with:
 
 ```bash
 pytest -q
 ```
 
-### Running steps manually
+If you prefer to run the steps by hand:
 
 ```bash
-python load_data.py                 # creates cell_counts.db in the repo root
-python -m analysis.queries           # prints Part 2-4 results to the console
-streamlit run dashboard/app.py       # launches the dashboard
+python load_data.py              # creates cell_counts.db in the repo root
+python -m analysis.queries       # prints the Part 2-4 results to the console
+streamlit run dashboard/app.py   # launches the dashboard
 ```
 
-`load_data.py` takes an optional path argument if your CSV lives elsewhere:
-`python load_data.py path/to/other.csv`.
+`load_data.py` rebuilds the database from scratch each time, so it is safe to re-run. It also accepts an optional CSV path: `python load_data.py path/to/other.csv`.
 
 ## Dashboard
 
-The dashboard has three tabs:
+The dashboard reads from the SQLite database, not the raw CSV, and has three tabs:
 
-1. **Part 2 — Frequency Overview**: the full per-sample/per-population frequency table (filterable, downloadable as CSV) and an overall composition chart.
-2. **Part 3 — Responders vs Non-Responders**: boxplots of relative frequency by population and response status (melanoma, miraclib, PBMC only), plus a Mann-Whitney U test table flagging which populations differ significantly (p < 0.05).
-3. **Part 4 — Baseline Subset**: sample counts per project, responder/non-responder counts, sex breakdown for the baseline (t=0) melanoma/miraclib/PBMC subset, and the average B-cell count for melanoma male responders at t=0.
-
-**Link to hosted dashboard:** https://loblaw-bio-immune.streamlit.app/
+1. **Part 2, Frequency Overview:** the full per-sample, per-population frequency table (filterable, with CSV download) and a chart of the average composition.
+2. **Part 3, Responders vs Non-Responders:** boxplots of relative frequency by population and response (melanoma, miraclib, PBMC only), a Mann-Whitney U test table, and a one-line plain-English summary of what differs.
+3. **Part 4, Baseline Subset:** samples per project, responder and non-responder counts, and sex counts for the baseline subset, plus the average B-cell metric from Part 4.3.
 
 ## Statistical methodology (Part 3)
 
-Relative frequencies (%) per population are compared between responders and
-non-responders using a two-sided **Mann-Whitney U test** (rather than a
-t-test), since percentage data is bounded between 0 and 100 and not
-guaranteed to be normally distributed; the rank-based test avoids that
-assumption. A population is flagged as significant at p < 0.05
-(uncorrected for the 5 simultaneous comparisons across populations — note
-this for Bob if he wants a stricter, multiple-comparison-corrected threshold
-such as Bonferroni, e.g. p < 0.01).
+Relative frequencies (%) are compared between responders and non-responders with a two-sided **Mann-Whitney U test**. Percentages are bounded between 0 and 100 and may not be normally distributed, so a rank-based test is safer than a t-test.
+
+With 993 responder samples and 975 non-responder samples, only **cd4_t_cell** is significant at p < 0.05 (p = 0.0133). The closest other population is b_cell at p = 0.0557.
+
+These p-values are **not corrected for multiple comparisons** across the 5 populations. A Bonferroni correction would use a threshold of 0.05 / 5 = 0.01, and cd4_t_cell (p = 0.0133) would no longer be significant under it. Treat the cd4_t_cell result as a lead worth following up, not a firm finding.
 
 ## Part 4.3 answer
 
-Considering melanoma male subjects across **all** sample types and
-treatments, the average B-cell count for **responders** at
-`time_from_treatment_start = 0` is **10206.15**.
+For melanoma males across **all** sample types and treatments, the average B-cell count for **responders** at `time_from_treatment_start = 0` is **10206.15**.
 
-Reproduce: `make pipeline`, then `python -m analysis.queries` (last section), or call
-`analysis.queries.avg_b_cells_melanoma_male_responders_t0()`. It is also shown on the
-dashboard's Part 4 tab.
+To reproduce it, run `make pipeline`, then `python -m analysis.queries` and look at the last section. You can also call `analysis.queries.avg_b_cells_melanoma_male_responders_t0()`. The same number appears on the dashboard's Part 4 tab.
