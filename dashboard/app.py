@@ -9,6 +9,7 @@ Run with:
 """
 
 import os
+import sqlite3
 import sys
 import tempfile
 from pathlib import Path
@@ -20,8 +21,17 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+
+def _db_ok(path: Path) -> bool:
+    try:
+        with sqlite3.connect(path) as c:
+            return c.execute("SELECT COUNT(*) FROM cell_counts").fetchone()[0] > 0
+    except sqlite3.Error:
+        return False
+
+
 # Hosted deployments lack the gitignored .db and may have a read-only repo dir.
-if not (ROOT / "cell_counts.db").exists() and "CELL_DB" not in os.environ:
+if "CELL_DB" not in os.environ and not _db_ok(ROOT / "cell_counts.db"):
     os.environ["CELL_DB"] = str(Path(tempfile.gettempdir()) / "cell_counts.db")
 
 from analysis.queries import (  # noqa: E402
@@ -36,7 +46,7 @@ from analysis.queries import (  # noqa: E402
 
 st.set_page_config(page_title="Loblaw Bio | Miraclib Immune Cell Analysis", layout="wide")
 
-if not Path(DEFAULT_DB).exists():
+if not _db_ok(Path(DEFAULT_DB)):
     import load_data
 
     load_data.main_build(load_data.DEFAULT_CSV)
