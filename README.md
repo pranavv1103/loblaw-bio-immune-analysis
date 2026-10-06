@@ -67,7 +67,7 @@ The dashboard has three tabs:
 2. **Part 3 — Responders vs Non-Responders**: boxplots of relative frequency by population and response status (melanoma, miraclib, PBMC only), plus a Mann-Whitney U test table flagging which populations differ significantly (p < 0.05).
 3. **Part 4 — Baseline Subset**: sample counts per project, responder/non-responder counts, sex breakdown for the baseline (t=0) melanoma/miraclib/PBMC subset, and the average B-cell count for melanoma male responders at t=0.
 
-**Link to hosted dashboard:** _add your deployed Streamlit Community Cloud (or equivalent) URL here after deploying — e.g. `https://share.streamlit.io/<user>/<repo>/main/dashboard/app.py`._
+**Link to hosted dashboard:** https://loblaw-bio-immune.streamlit.app/
 
 ## Statistical methodology (Part 3)
 
